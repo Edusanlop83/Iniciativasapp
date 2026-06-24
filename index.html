@@ -1,4 +1,4 @@
-<!-- ACE_Solicitud_de_Iniciativa v1.0 — Formulario de intake (proceso 1 Identificación de Iniciativa · órgano PMO). Escribe en el tablero Monday "Solicitudes de Iniciativa ACE" (18419254783) vía monday-sdk-js (autenticación seamless). -->
+<!-- ACE_Solicitud_de_Iniciativa v1.1 — Área solicitante = columna status (Negocio/Operación/TI/PMO) leída en vivo desde el tablero. v1.0 — Formulario de intake (proceso 1 Identificación de Iniciativa · órgano PMO). Escribe en el tablero Monday "Solicitudes de Iniciativa ACE" (18419254783) vía monday-sdk-js (autenticación seamless). -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -141,7 +141,8 @@ input[type=text]:focus,textarea:focus,select:focus{outline:0;border-color:var(--
 
       <div class="field">
         <label class="lbl" for="area">Área / unidad solicitante<span class="opt">opcional</span></label>
-        <input type="text" id="area" placeholder="Ej. Comercial, Cobranza, TI…">
+        <select id="area"><option value="">— Selecciona —</option></select>
+        <div class="hint">Opciones definidas en el tablero.</div>
       </div>
     </section>
 
@@ -249,7 +250,7 @@ input[type=text]:focus,textarea:focus,select:focus{outline:0;border-color:var(--
     </div>
   </section>
 
-  <div class="foot">Programa ACE · PMO &nbsp;·&nbsp; <b>Solicitud de Iniciativa</b> v1.0 &nbsp;·&nbsp; los datos se guardan en Monday (fuente única de verdad)</div>
+  <div class="foot">Programa ACE · PMO &nbsp;·&nbsp; <b>Solicitud de Iniciativa</b> v1.1 &nbsp;·&nbsp; los datos se guardan en Monday (fuente única de verdad)</div>
 </div>
 
 <script src="monday-sdk.js"></script>
@@ -258,7 +259,7 @@ const BOARD_ID=18419254783, INIT_BOARD=18409520532, HITO_BOARD=18409521444;
 const ACCOUNT_SLUG='gim-holdings-company';
 const COLS={
   estado:'color_mm4mhc03', organo:'color_mm4mksra', fecha:'date_mm4m57wm',
-  lider:'multiple_person_mm4me5v', sponsor:'multiple_person_mm4mznj9', area:'text_mm4mwjc9',
+  lider:'multiple_person_mm4me5v', sponsor:'multiple_person_mm4mznj9', area:'color_mm4mqsg8',
   necesidad:'long_text_mm4mhxes', alcance:'long_text_mm4mt16f', beneficios:'long_text_mm4mvesj',
   rfunc:'long_text_mm4m7wy7', rop:'long_text_mm4mh942', rtec:'long_text_mm4m8ye4', rint:'long_text_mm4mmcse',
   tipos:'dropdown_mm4mkxs4', prioridad:'color_mm4md5v5',
@@ -294,6 +295,19 @@ function wireNA(naId, listId){
 }
 function selectedIds(cls){ return [...document.querySelectorAll('.'+cls+':checked')].map(i=>parseInt(i.value)); }
 
+async function fillAreas(){
+  try{
+    const q='query { boards (ids: '+BOARD_ID+') { columns (ids: ["'+COLS.area+'"]) { settings_str } } }';
+    const r=await monday.api(q);
+    const s=JSON.parse(r.data.boards[0].columns[0].settings_str);
+    let labels=[];
+    if(Array.isArray(s.labels)) labels=s.labels.map(l=>({text:(l.label||l.name),pos:(l.index!=null?l.index:0)}));
+    else { const pos=s.labels_positions_v2||{}; labels=Object.keys(s.labels).filter(k=>s.labels[k]).map(k=>({text:s.labels[k],pos:(pos[k]!=null?pos[k]:Number(k))})); }
+    labels.sort((a,b)=>a.pos-b.pos);
+    const sel=$('area'); labels.forEach(l=>{const o=document.createElement('option');o.value=l.text;o.textContent=l.text;sel.appendChild(o);});
+  }catch(e){ showBanner('No se pudieron cargar las áreas definidas en el tablero.'); }
+}
+
 function refreshTipos(){
   const map={Funcional:$('req_func'),Operativo:$('req_op'),'Tecnológico':$('req_tec'),'Integraciones y Datos':$('req_int')};
   let any=false;
@@ -316,6 +330,7 @@ async function init(){
     const u=await monday.api('query { users (kind: non_guests) { id name } }');
     fillUsers((u.data&&u.data.users)||[]);
   }catch(e){ showBanner('No se pudieron cargar los usuarios. Revisa los permisos de la app.'); }
+  await fillAreas();
   try{
     const qi='query { boards (ids: '+INIT_BOARD+') { items_page (limit: 100) { items { id name } } } }';
     const ri=await monday.api(qi); INIT=((ri.data.boards[0]||{}).items_page||{}).items||[]; fillList('list-init',INIT,'cb-init');
@@ -345,7 +360,7 @@ function buildColumnValues(){
   v[COLS.fecha]={date:new Date().toISOString().slice(0,10)};
   v[COLS.lider]={personsAndTeams:[{id:parseInt($('lider').value),kind:'person'}]};
   if($('sponsor').value) v[COLS.sponsor]={personsAndTeams:[{id:parseInt($('sponsor').value),kind:'person'}]};
-  if($('area').value.trim()) v[COLS.area]=$('area').value.trim();
+  if($('area').value) v[COLS.area]={label:$('area').value};
   v[COLS.necesidad]={text:$('necesidad').value.trim()};
   v[COLS.alcance]={text:$('alcance').value.trim()};
   if($('beneficios').value.trim()) v[COLS.beneficios]={text:$('beneficios').value.trim()};
