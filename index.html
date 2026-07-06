@@ -1,10 +1,10 @@
-<!-- ACE_Solicitud_de_Iniciativa v1.1 — Área solicitante = columna status (Negocio/Operación/TI/PMO) leída en vivo desde el tablero. v1.0 — Formulario de intake (proceso 1 Identificación de Iniciativa · órgano PMO). Escribe en el tablero Monday "Solicitudes de Iniciativa ACE" (18419254783) vía monday-sdk-js (autenticación seamless). -->
+<!-- ACE_Solicitud_de_Iniciativa v1.3.1 — Fix carga Iniciativas/Hitos: se fija apiVersion 2024-10 en las llamadas monday.api (items_page requiere versión moderna) y el banner ahora muestra el error real por board. — Pantalla de éxito: "Siguientes pasos" + descarga de plantilla HTML autocontenida y pre-llenada por tipo (motor plantilla.js), con exportación a Word/PDF y nombre personalizado ACE-[Tipo]_[Usuario]_[AAAAMMDD]. v1.2.1 — Bloque A segmentado + bloque B dinámico. v1.2 — Tipos de SR y campos polivalentes. v1.1 — Área en vivo. v1.0 — Intake inicial. Escribe en el tablero Monday "Iniciativas de proyectos ACE" (18419254783). -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Solicitud de Iniciativa ACE</title>
+<title>Solicitud de Registro de Iniciativa - Programa ACE</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
@@ -43,7 +43,7 @@ body{background:var(--bg);color:var(--ink2);font-family:var(--body);line-height:
 label.lbl{display:block;font-weight:600;font-size:13.5px;color:var(--ink);margin-bottom:6px}
 label.lbl .req{color:var(--ace);margin-left:3px}
 label.lbl .opt{color:var(--muted);font-weight:500;font-size:12px;margin-left:6px}
-.hint{font-size:12px;color:var(--muted);margin-top:5px}
+.hint{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.45}
 input[type=text],textarea,select{width:100%;font-family:var(--body);font-size:14px;color:var(--ink);
   background:var(--field);border:1.5px solid var(--field-line);border-radius:10px;padding:10px 12px;transition:.15s}
 textarea{min-height:78px;resize:vertical}
@@ -53,10 +53,15 @@ input[type=text]:focus,textarea:focus,select:focus{outline:0;border-color:var(--
 .invalid{border-color:var(--err)!important;box-shadow:0 0 0 3px rgba(223,47,74,.12)!important}
 .err-msg{display:none;color:var(--err);font-size:12px;margin-top:5px;font-weight:600}
 .err-msg.on{display:block}
-/* requirements group */
-.reqnote{font-size:12.5px;color:var(--ink2);background:#F4F6FB;border:1px solid #E1E6F2;border-radius:10px;padding:9px 13px;margin-bottom:14px}
-.reqnote b{color:var(--navy)}
-.reqnote.bad{background:#FDECEF;border-color:#F6C2CC;color:var(--err)}
+/* Type selector cards */
+.seg{display:flex;gap:8px;margin-top:4px}
+@media(max-width:560px){.seg{flex-wrap:wrap}}
+.segbtn{flex:1 1 0;min-width:110px;text-align:center;font-family:var(--hsans);font-weight:700;font-size:12.5px;letter-spacing:.2px;color:var(--ink2);background:#fff;border:1.5px solid var(--field-line);border-radius:10px;padding:11px 10px;cursor:pointer;transition:.15s}
+.segbtn:hover:not(:disabled){border-color:var(--ace);color:var(--navy)}
+.segbtn.sel{background:var(--ace);border-color:var(--ace);color:#fff;box-shadow:0 0 0 3px rgba(229,74,18,.12)}
+.segbtn:disabled{opacity:.5;cursor:not-allowed;background:#F7F7F5;color:#9aa0ad}
+.segbtn .ssub{display:block;font-weight:600;font-size:8.5px;letter-spacing:.5px;text-transform:uppercase;margin-top:3px;opacity:.85}
+.tdescbox{margin-top:12px;background:#F8F5F0;border:1px solid #EBE5DC;border-left:3px solid var(--ace);border-radius:10px;padding:11px 14px;font-size:12.5px;color:var(--ink2);line-height:1.5}
 /* chips multiselect */
 .msel{border:1.5px solid var(--field-line);border-radius:10px;padding:8px;max-height:172px;overflow:auto;background:#fff}
 .opt-row{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:13.5px}
@@ -65,9 +70,6 @@ input[type=text]:focus,textarea:focus,select:focus{outline:0;border-color:var(--
 .na-row{border-bottom:1px dashed var(--line);margin-bottom:4px;padding-bottom:9px}
 .na-row label{font-weight:600;color:var(--navy)}
 .msel.disabled{opacity:.5;pointer-events:none}
-.tipos{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
-.tipos span{font-family:var(--hsans);font-size:10.5px;font-weight:700;color:#9aa0ad;background:#F1F2F6;border:1px solid #E2E5EC;padding:5px 11px;border-radius:8px}
-.tipos span.on{color:#fff;background:linear-gradient(135deg,var(--navy2),var(--blue));border-color:transparent}
 /* governance read-only */
 .gov{display:flex;flex-wrap:wrap;gap:18px;background:#F8F5F0;border:1px solid #EBE5DC;border-radius:12px;padding:14px 16px}
 .gov .gi{font-size:12.5px}
@@ -81,6 +83,7 @@ input[type=text]:focus,textarea:focus,select:focus{outline:0;border-color:var(--
 .btn-primary:disabled{opacity:.55;cursor:not-allowed}
 .btn-ghost{background:#fff;border:1.5px solid var(--field-line);color:var(--ink2)}
 .subnote{font-size:12px;color:var(--muted)}
+#rest{display:none}
 /* success */
 .success{display:none;text-align:center;padding:30px 24px}
 .success .ico{width:62px;height:62px;border-radius:50%;background:#E6F7EF;color:var(--ok);display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
@@ -88,8 +91,13 @@ input[type=text]:focus,textarea:focus,select:focus{outline:0;border-color:var(--
 .success h2{font-family:var(--serif);font-weight:600;color:var(--navy);font-size:22px}
 .success p{color:var(--muted);font-size:14px;margin-top:6px}
 .success a.link{color:var(--ace);font-weight:600;text-decoration:none}
+.next{text-align:left;max-width:560px;margin:16px auto 0;background:#FFF8F4;border:1px solid #F1D9C9;border-left:3px solid var(--ace);border-radius:12px;padding:16px 18px}
+.next .next-t{font-family:var(--hsans);font-weight:700;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--ace);margin-bottom:6px}
+.next p{color:var(--ink2);font-size:13.5px;margin:0 0 12px}
+.next p a{color:var(--ace);font-weight:600;text-decoration:none}
 .foot{text-align:center;color:var(--muted);font-size:11.5px;margin:20px 0 6px}
 .foot b{color:var(--ink2)}
+.foot .chlog{display:block;margin-top:6px;font-size:10.5px;color:#AEB4BE}
 </style>
 </head>
 <body>
@@ -102,8 +110,8 @@ input[type=text]:focus,textarea:focus,select:focus{outline:0;border-color:var(--
       <rect x="10" y="120" width="220" height="80" fill="url(#d)" opacity=".6"/>
       <circle cx="760" cy="40" r="120" fill="url(#o)"/>
     </svg>
-    <h1>Solicitud de Iniciativa ACE</h1>
-    <div class="sub">Registro formal de una nueva iniciativa o necesidad de negocio. Primer paso de la cadena de valor — alimenta el Business Case, la Evaluación Integral y la Priorización.</div>
+    <h1>Solicitud de Registro de Iniciativa - Programa ACE</h1>
+    <div class="sub">Registro formal de una nueva solicitud del Programa ACE. Elige el tipo (Proyecto, Piloto o PoC); solo pedimos lo indispensable — el levantamiento detallado se hace después con la plantilla del tipo.</div>
     <div class="meta">
       <span class="mchip">Proceso · <b>Identificación de Iniciativa</b></span>
       <span class="mchip">Macroproceso · <b>Pre-Proyecto</b></span>
@@ -115,128 +123,137 @@ input[type=text]:focus,textarea:focus,select:focus{outline:0;border-color:var(--
 
   <form id="form" autocomplete="off">
 
-    <!-- A. Identificación -->
+    <!-- A. Tipo de Solicitud -->
     <section class="card">
-      <span class="sec-eyebrow">A · Identificación</span>
-      <div class="sec-title">Datos de la iniciativa</div>
-      <div class="sec-desc">Quién la propone y a qué área responde.</div>
+      <span class="sec-eyebrow">A · Tipo de solicitud</span>
+      <div class="sec-title">¿Qué tipo de solicitud vas a registrar?</div>
+      <div class="sec-desc">Determina el nivel de formalidad y gobierno.</div>
 
-      <div class="field">
-        <label class="lbl" for="nombre">Nombre de la iniciativa/proyecto nuevo<span class="req">*</span></label>
-        <input type="text" id="nombre" placeholder="Ej. Automatización de asignación de leads">
-        <div class="err-msg" id="e-nombre">Indica un nombre para la iniciativa.</div>
+      <div class="seg" id="types">
+        <button type="button" class="segbtn" data-t="Proyecto">Proyecto</button>
+        <button type="button" class="segbtn" data-t="Piloto">Piloto</button>
+        <button type="button" class="segbtn" data-t="PoC">PoC<span class="ssub">Prueba de concepto</span></button>
+        <button type="button" class="segbtn" data-t="Orden de Cambio" disabled>Orden de Cambio<span class="ssub">Próximamente</span></button>
       </div>
+      <div class="tdescbox" id="tdesc"></div>
+      <div class="err-msg" id="e-tipo">Selecciona el tipo de solicitud.</div>
+    </section>
 
-      <div class="row2">
+    <!-- Resto del formulario (se muestra al elegir tipo) -->
+    <div id="rest">
+
+      <!-- B. Identificación -->
+      <section class="card">
+        <span class="sec-eyebrow">B · Identificación</span>
+        <div class="sec-title" id="b-title">Datos de la solicitud</div>
+        <div class="sec-desc">Quién la propone y a qué área responde.</div>
+
         <div class="field">
-          <label class="lbl" for="lider">Líder proyecto/PO<span class="req">*</span></label>
-          <select id="lider"></select>
-          <div class="hint">Por defecto, quien registra. Puedes elegir otra persona.</div>
+          <label class="lbl" for="nombre"><span id="lbl-nombre">Nombre de la solicitud</span><span class="req">*</span></label>
+          <input type="text" id="nombre" placeholder="Ej. Automatización de asignación de leads">
+          <div class="hint">Nombre corto y reconocible de lo que se registra. Ej. &laquo;Automatización de asignación de leads&raquo;.</div>
+          <div class="err-msg" id="e-nombre">Indica un nombre para la solicitud.</div>
         </div>
+
+        <div class="row2">
+          <div class="field">
+            <label class="lbl" for="lider">Líder / PO<span class="req">*</span></label>
+            <select id="lider"></select>
+            <div class="hint">Responsable de conducir la solicitud. Por defecto, quien registra. Ej. tú mismo o el dueño del producto.</div>
+            <div class="err-msg" id="e-lider">Selecciona al líder responsable.</div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="sponsor">Sponsor / BO<span class="opt">opcional</span></label>
+            <select id="sponsor"><option value="">— Sin sponsor —</option></select>
+            <div class="hint">Quien patrocina y respalda la iniciativa. Ej. Director Comercial.</div>
+          </div>
+        </div>
+
         <div class="field">
-          <label class="lbl" for="sponsor">Sponsor/BO<span class="opt">opcional</span></label>
-          <select id="sponsor"><option value="">— Sin sponsor —</option></select>
+          <label class="lbl" for="area">Área / unidad solicitante<span class="req">*</span></label>
+          <select id="area"><option value="">— Selecciona —</option></select>
+          <div class="hint">Unidad de negocio que origina la necesidad. Ej. Operación.</div>
+          <div class="err-msg" id="e-area">Selecciona el área solicitante.</div>
         </div>
-      </div>
+      </section>
 
-      <div class="field">
-        <label class="lbl" for="area">Área / unidad solicitante<span class="opt">opcional</span></label>
-        <select id="area"><option value="">— Selecciona —</option></select>
-        <div class="hint">Opciones definidas en el tablero.</div>
-      </div>
-    </section>
+      <!-- C. Definición -->
+      <section class="card">
+        <span class="sec-eyebrow">C · Definición</span>
+        <div class="sec-title">Qué se quiere resolver</div>
+        <div class="sec-desc">Lo esencial para clasificar y priorizar. El detalle formal se levanta después con la plantilla del tipo.</div>
 
-    <!-- B. Necesidad y alcance -->
-    <section class="card">
-      <span class="sec-eyebrow">B · Necesidad y alcance</span>
-      <div class="sec-title">Qué se quiere resolver</div>
-      <div class="sec-desc">Describe la necesidad, el alcance de alto nivel y los beneficios esperados.</div>
-
-      <div class="field">
-        <label class="lbl" for="necesidad">Necesidad de negocio / problema u oportunidad<span class="req">*</span></label>
-        <textarea id="necesidad" placeholder="¿Qué problema u oportunidad origina esta iniciativa?"></textarea>
-        <div class="err-msg" id="e-necesidad">Describe la necesidad de negocio.</div>
-      </div>
-      <div class="field">
-        <label class="lbl" for="alcance">Alcance general de alto nivel<span class="req">*</span></label>
-        <textarea id="alcance" placeholder="¿Qué abarca, a grandes rasgos? ¿Qué queda fuera?"></textarea>
-        <div class="err-msg" id="e-alcance">Describe el alcance de alto nivel.</div>
-      </div>
-      <div class="field">
-        <label class="lbl" for="beneficios">Beneficios preliminares esperados<span class="opt">opcional</span></label>
-        <textarea id="beneficios" placeholder="Beneficios o resultados esperados (cualitativos o cuantitativos)."></textarea>
-      </div>
-      <div class="field">
-        <label class="lbl" for="prioridad">Prioridad sugerida<span class="opt">opcional — la formaliza el Comité</span></label>
-        <select id="prioridad"><option value="">— Sin sugerir —</option><option>Baja</option><option>Media</option><option>Alta</option><option>Urgente</option></select>
-      </div>
-    </section>
-
-    <!-- C. Requerimientos -->
-    <section class="card">
-      <span class="sec-eyebrow">C · Requerimientos de alto nivel</span>
-      <div class="sec-title">Requerimientos por tipo</div>
-      <div class="sec-desc">Pueden aplicar uno o varios tipos. <b>Debes documentar al menos uno.</b></div>
-
-      <div class="reqnote" id="reqnote">Tipos documentados:
-        <div class="tipos" id="tipos">
-          <span data-t="Funcional">Funcional</span><span data-t="Operativo">Operativo</span><span data-t="Tecnológico">Tecnológico</span><span data-t="Integraciones y Datos">Integraciones y Datos</span>
-        </div>
-      </div>
-
-      <div class="field">
-        <label class="lbl" for="req_func">Requerimientos Funcionales</label>
-        <textarea id="req_func" data-tipo="Funcional" placeholder="Funcionalidades, reglas de negocio, comportamientos esperados…"></textarea>
-      </div>
-      <div class="field">
-        <label class="lbl" for="req_op">Requerimientos Operativos</label>
-        <textarea id="req_op" data-tipo="Operativo" placeholder="Procesos, roles, operación, adopción…"></textarea>
-      </div>
-      <div class="field">
-        <label class="lbl" for="req_tec">Requerimientos Tecnológicos</label>
-        <textarea id="req_tec" data-tipo="Tecnológico" placeholder="Plataformas, capacidades técnicas, infraestructura…"></textarea>
-      </div>
-      <div class="field">
-        <label class="lbl" for="req_int">Requerimientos de Integraciones y Datos</label>
-        <textarea id="req_int" data-tipo="Integraciones y Datos" placeholder="Integraciones, fuentes de datos, modelos, APIs…"></textarea>
-      </div>
-      <div class="err-msg" id="e-req">Documenta al menos un tipo de requerimiento.</div>
-    </section>
-
-    <!-- D. Alineación estratégica -->
-    <section class="card">
-      <span class="sec-eyebrow">D · Alineación estratégica</span>
-      <div class="sec-title">Iniciativas y Momentos Hito</div>
-      <div class="sec-desc">Vincula la solicitud al portafolio. Si aún no aplica, marca <b>N/A</b>.</div>
-
-      <div class="row2">
         <div class="field">
-          <label class="lbl">Iniciativas ACE que aporta</label>
-          <div class="msel" id="msel-init"><div class="na-row opt-row"><input type="checkbox" id="na-init"><label for="na-init">N/A — Sin alineación / Por definir</label></div><div id="list-init"></div></div>
+          <label class="lbl" for="necesidad">Necesidad de negocio / problema u oportunidad<span class="req">*</span></label>
+          <textarea id="necesidad" placeholder="¿Qué problema u oportunidad origina esta solicitud?"></textarea>
+          <div class="hint">Problema u oportunidad que justifica el registro. Ej. &laquo;Los leads tardan más de 24 h en asignarse y se pierden oportunidades&raquo;.</div>
+          <div class="err-msg" id="e-necesidad">Describe la necesidad de negocio.</div>
         </div>
+
         <div class="field">
-          <label class="lbl">Momentos Hito que habilita</label>
-          <div class="msel" id="msel-hito"><div class="na-row opt-row"><input type="checkbox" id="na-hito"><label for="na-hito">N/A — Sin alineación / Por definir</label></div><div id="list-hito"></div></div>
+          <label class="lbl" for="objhip"><span id="lbl-objhip">Objetivo</span><span class="req">*</span></label>
+          <textarea id="objhip" placeholder=""></textarea>
+          <div class="hint" id="hint-objhip"></div>
+          <div class="err-msg" id="e-objhip">Completa este campo.</div>
         </div>
-      </div>
-    </section>
 
-    <!-- Gobierno (lectura) -->
-    <section class="card">
-      <span class="sec-eyebrow">Gobierno</span>
-      <div class="sec-title">Estado inicial del registro</div>
-      <div class="sec-desc">Se asigna automáticamente al enviar.</div>
-      <div class="gov">
-        <div class="gi"><span class="gk">Estado</span><span class="gv">Registrada — En revisión PMO</span></div>
-        <div class="gi"><span class="gk">Órgano responsable</span><span class="gv">PMO</span></div>
-        <div class="gi"><span class="gk">Siguiente paso</span><span class="gv">Business Case</span></div>
-      </div>
+        <div class="field">
+          <label class="lbl" for="alctec"><span id="lbl-alctec">Alcance</span><span class="opt">opcional</span></label>
+          <textarea id="alctec" placeholder=""></textarea>
+          <div class="hint" id="hint-alctec"></div>
+        </div>
 
-      <div class="actions">
-        <button type="submit" class="btn btn-primary" id="submit">Registrar solicitud</button>
-        <span class="subnote" id="submitnote"></span>
-      </div>
-    </section>
+        <div class="field">
+          <label class="lbl" for="criterio"><span id="lbl-criterio">Criterio de éxito</span><span class="opt">opcional</span></label>
+          <textarea id="criterio" placeholder=""></textarea>
+          <div class="hint" id="hint-criterio"></div>
+        </div>
+
+        <div class="field">
+          <label class="lbl" for="prioridad">Prioridad sugerida<span class="opt">opcional — la confirma el Comité</span></label>
+          <select id="prioridad"><option value="">— Sin sugerir —</option><option>Baja</option><option>Media</option><option>Alta</option><option>Crítica</option></select>
+          <div class="hint">Urgencia relativa propuesta; la formaliza el Comité. Ej. Alta.</div>
+        </div>
+      </section>
+
+      <!-- D. Alineación estratégica -->
+      <section class="card">
+        <span class="sec-eyebrow">D · Alineación estratégica</span>
+        <div class="sec-title">Iniciativas y Momentos Hito</div>
+        <div class="sec-desc">Vincula la solicitud al portafolio. Si aún no aplica, marca <b>N/A</b>.</div>
+
+        <div class="row2">
+          <div class="field">
+            <label class="lbl">Iniciativas ACE que aporta<span class="opt">opcional</span></label>
+            <div class="msel" id="msel-init"><div class="na-row opt-row"><input type="checkbox" id="na-init"><label for="na-init">N/A — Sin alineación / Por definir</label></div><div id="list-init"></div></div>
+            <div class="hint">Iniciativa(s) del Playbook a las que contribuye. Ej. I-06 CRM.</div>
+          </div>
+          <div class="field">
+            <label class="lbl">Momentos Hito que habilita<span class="opt">opcional</span></label>
+            <div class="msel" id="msel-hito"><div class="na-row opt-row"><input type="checkbox" id="na-hito"><label for="na-hito">N/A — Sin alineación / Por definir</label></div><div id="list-hito"></div></div>
+            <div class="hint">Momento Hito (A/B/C/D) que la solicitud impulsa. Ej. C.1 Compra Fácil.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Gobierno (lectura) -->
+      <section class="card">
+        <span class="sec-eyebrow">Gobierno</span>
+        <div class="sec-title">Estado inicial del registro</div>
+        <div class="sec-desc">Se asigna automáticamente al enviar.</div>
+        <div class="gov">
+          <div class="gi"><span class="gk">Estado</span><span class="gv">Registrada — En revisión PMO</span></div>
+          <div class="gi"><span class="gk">Órgano responsable</span><span class="gv">PMO</span></div>
+          <div class="gi"><span class="gk">Siguiente paso</span><span class="gv">Levantamiento formal → Plantilla de solicitud</span></div>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn btn-primary" id="submit">Registrar solicitud</button>
+          <span class="subnote" id="submitnote"></span>
+        </div>
+      </section>
+
+    </div><!-- /#rest -->
   </form>
 
   <!-- Success -->
@@ -244,29 +261,64 @@ input[type=text]:focus,textarea:focus,select:focus{outline:0;border-color:var(--
     <div class="ico"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
     <h2>Solicitud registrada</h2>
     <p id="success-msg">Tu solicitud quedó registrada en el tablero de la PMO.</p>
+    <div class="next" id="next-steps">
+      <div class="next-t">Siguientes pasos</div>
+      <p>Llenar la plantilla de solicitud y enviar al representante de la PMO al correo <a href="mailto:esanchezlo@dap.com.mx">esanchezlo@dap.com.mx</a>.</p>
+      <button type="button" class="btn btn-primary" id="descargar-plantilla">Descargar plantilla de <span id="tipo-plantilla">Proyecto</span></button>
+    </div>
     <div class="actions" style="justify-content:center;margin-top:18px">
       <a id="ver-item" class="btn btn-ghost" target="_blank" rel="noopener" style="text-decoration:none">Ver en Monday</a>
       <button class="btn btn-primary" id="otra">Registrar otra</button>
     </div>
   </section>
 
-  <div class="foot">Programa ACE · PMO &nbsp;·&nbsp; <b>Solicitud de Iniciativa</b> v1.1 &nbsp;·&nbsp; los datos se guardan en Monday (fuente única de verdad)</div>
+  <div class="foot">Programa ACE · PMO &nbsp;·&nbsp; <b>Solicitud de Iniciativa</b> v1.3.1 &nbsp;·&nbsp; los datos se guardan en Monday (fuente única de verdad)</div>
 </div>
 
 <script src="monday-sdk.js"></script>
+<script src="plantilla.js"></script>
 <script>
 const BOARD_ID=18419254783, INIT_BOARD=18409520532, HITO_BOARD=18409521444;
 const ACCOUNT_SLUG='gim-holdings-company';
+const API_V='2024-10'; // versión de API donde items_page está disponible
+function apiQ(q, vars){ return monday.api(q, vars?{variables:vars, apiVersion:API_V}:{apiVersion:API_V}); }
 const COLS={
   estado:'color_mm4mhc03', organo:'color_mm4mksra', fecha:'date_mm4m57wm',
+  tiposr:'color_mm4xksw9',
   lider:'multiple_person_mm4me5v', sponsor:'multiple_person_mm4mznj9', area:'color_mm4mqsg8',
-  necesidad:'long_text_mm4mhxes', alcance:'long_text_mm4mt16f', beneficios:'long_text_mm4mvesj',
-  rfunc:'long_text_mm4m7wy7', rop:'long_text_mm4mh942', rtec:'long_text_mm4m8ye4', rint:'long_text_mm4mmcse',
-  tipos:'dropdown_mm4mkxs4', prioridad:'color_mm4md5v5',
+  necesidad:'long_text_mm4mhxes',
+  objhip:'long_text_mm4xx6mg',
+  alctec:'long_text_mm4mt16f',
+  criterio:'long_text_mm4mvesj',
+  prioridad:'color_mm4md5v5',
   iniciativas:'board_relation_mm4mne46', hitos:'board_relation_mm4m4hvx'
 };
+// Configuración polivalente por tipo: etiqueta + ayuda (gris medio con ejemplo)
+const TYPES={
+  'Proyecto':{
+    desc:'Iniciativa formal con alcance, presupuesto y cronograma definidos, sujeta a gobierno pleno de la PMO y Business Case.',
+    secB:'Datos de la solicitud de proyecto', nombre:'Nombre del proyecto',
+    objhip:{lbl:'Objetivo', hint:'Resultado de valor que perseguirá el proyecto. Ej. «Reducir el tiempo de asignación de leads a menos de 2 horas».', ph:'Objetivo del proyecto…'},
+    alctec:{lbl:'Alcance', hint:'Qué abarca a grandes rasgos y qué queda fuera. Ej. «Incluye leads digitales; excluye referidos presenciales».', ph:'Alcance de alto nivel…'},
+    criterio:{lbl:'Criterio de éxito', hint:'Métrica que definirá que el proyecto cumplió. Ej. «90% de leads asignados en menos de 2 h».', ph:'Criterio de éxito…'}
+  },
+  'Piloto':{
+    desc:'Implementación acotada y temporal en entorno real para validar viabilidad operativa antes de escalar a proyecto formal.',
+    secB:'Datos de la solicitud de piloto', nombre:'Nombre del piloto',
+    objhip:{lbl:'Hipótesis', hint:'Supuesto operativo que el piloto pondrá a prueba. Ej. «El bot de asignación mejora la conversión en campañas Meta».', ph:'Hipótesis a validar…'},
+    alctec:{lbl:'Alcance', hint:'Alcance acotado del piloto y qué queda fuera. Ej. «Solo campañas Meta de la zona norte, 3 asesores».', ph:'Alcance acotado del piloto…'},
+    criterio:{lbl:'Criterio de éxito', hint:'Métrica go/no-go para decidir si se escala. Ej. «Conversión ≥ 15% durante el piloto».', ph:'Criterio de éxito / go-no go…'}
+  },
+  'PoC':{
+    desc:'Experimento técnico de corta duración para verificar la factibilidad de una tecnología o enfoque, sin compromiso de producción.',
+    secB:'Datos de la solicitud de PoC', nombre:'Nombre de la PoC',
+    objhip:{lbl:'Hipótesis técnica', hint:'Supuesto de factibilidad a verificar. Ej. «MuleSoft puede consumir el endpoint oculto de FOVISSSTE».', ph:'Hipótesis técnica…'},
+    alctec:{lbl:'Tecnología a probar', hint:'Componente o tecnología objeto de la prueba. Ej. «Conector MuleSoft + API FOVISSSTE».', ph:'Tecnología / componente a probar…'},
+    criterio:{lbl:'Criterio de aceptación', hint:'Condición técnica que define éxito. Ej. «Respuesta en menos de 2 s con datos correctos en 20 pruebas».', ph:'Criterio de aceptación…'}
+  }
+};
 const monday = (typeof mondaySdk!=='undefined') ? mondaySdk() : null;
-let currentUserId=null, INIT=[], HITO=[];
+let currentUserId=null, INIT=[], HITO=[], selectedType=null;
 const $=id=>document.getElementById(id);
 
 function fillUsers(users){
@@ -298,7 +350,7 @@ function selectedIds(cls){ return [...document.querySelectorAll('.'+cls+':checke
 async function fillAreas(){
   try{
     const q='query { boards (ids: '+BOARD_ID+') { columns (ids: ["'+COLS.area+'"]) { settings_str } } }';
-    const r=await monday.api(q);
+    const r=await apiQ(q);
     const s=JSON.parse(r.data.boards[0].columns[0].settings_str);
     let labels=[];
     if(Array.isArray(s.labels)) labels=s.labels.map(l=>({text:(l.label||l.name),pos:(l.index!=null?l.index:0)}));
@@ -308,15 +360,24 @@ async function fillAreas(){
   }catch(e){ showBanner('No se pudieron cargar las áreas definidas en el tablero.'); }
 }
 
-function refreshTipos(){
-  const map={Funcional:$('req_func'),Operativo:$('req_op'),'Tecnológico':$('req_tec'),'Integraciones y Datos':$('req_int')};
-  let any=false;
-  document.querySelectorAll('#tipos span').forEach(s=>{
-    const t=s.dataset.t, on=(map[t].value.trim().length>0); s.classList.toggle('on',on); if(on)any=true;
-  });
-  return any;
+// Aplica etiquetas/ayudas polivalentes según el tipo elegido y revela el resto del formulario
+function applyType(t){
+  selectedType=t;
+  const cfg=TYPES[t]; if(!cfg) return;
+  $('tdesc').textContent=cfg.desc;
+  $('b-title').textContent=cfg.secB;
+  $('lbl-nombre').textContent=cfg.nombre;
+  $('lbl-objhip').textContent=cfg.objhip.lbl; $('hint-objhip').textContent=cfg.objhip.hint; $('objhip').placeholder=cfg.objhip.ph;
+  $('lbl-alctec').textContent=cfg.alctec.lbl; $('hint-alctec').textContent=cfg.alctec.hint; $('alctec').placeholder=cfg.alctec.ph;
+  $('lbl-criterio').textContent=cfg.criterio.lbl; $('hint-criterio').textContent=cfg.criterio.hint; $('criterio').placeholder=cfg.criterio.ph;
+  document.querySelectorAll('#types .segbtn').forEach(b=>b.classList.toggle('sel', b.dataset.t===t));
+  $('e-tipo').classList.remove('on');
+  $('rest').style.display='block';
 }
-['req_func','req_op','req_tec','req_int'].forEach(id=>$(id).addEventListener('input',()=>{refreshTipos();$('reqnote').classList.remove('bad');$('e-req').classList.remove('on');}));
+document.querySelectorAll('#types .segbtn').forEach(b=>{
+  b.addEventListener('click',()=>{ if(!b.disabled) applyType(b.dataset.t); });
+});
+applyType('Proyecto'); // preseleccionado por defecto
 
 function showBanner(msg){const b=$('banner');b.textContent=msg;b.classList.add('warn');}
 
@@ -327,29 +388,33 @@ async function init(){
     currentUserId = ctx && ctx.data && ctx.data.user ? ctx.data.user.id : null;
   }catch(e){}
   try{
-    const u=await monday.api('query { users (kind: non_guests) { id name } }');
+    const u=await apiQ('query { users (kind: non_guests) { id name } }');
     fillUsers((u.data&&u.data.users)||[]);
-  }catch(e){ showBanner('No se pudieron cargar los usuarios. Revisa los permisos de la app.'); }
+  }catch(e){ showBanner('No se pudieron cargar los usuarios: '+(e&&e.message?e.message:e)); }
   await fillAreas();
+  const relErr=[];
   try{
     const qi='query { boards (ids: '+INIT_BOARD+') { items_page (limit: 100) { items { id name } } } }';
-    const ri=await monday.api(qi); INIT=((ri.data.boards[0]||{}).items_page||{}).items||[]; fillList('list-init',INIT,'cb-init');
+    const ri=await apiQ(qi); INIT=((ri.data.boards[0]||{}).items_page||{}).items||[]; fillList('list-init',INIT,'cb-init');
+  }catch(e){ relErr.push('Iniciativas: '+(e&&e.message?e.message:e)); }
+  try{
     const qh='query { boards (ids: '+HITO_BOARD+') { items_page (limit: 100) { items { id name } } } }';
-    const rh=await monday.api(qh); HITO=((rh.data.boards[0]||{}).items_page||{}).items||[]; fillList('list-hito',HITO,'cb-hito');
-  }catch(e){ showBanner('No se pudieron cargar Iniciativas/Hitos. Revisa los permisos de la app.'); }
+    const rh=await apiQ(qh); HITO=((rh.data.boards[0]||{}).items_page||{}).items||[]; fillList('list-hito',HITO,'cb-hito');
+  }catch(e){ relErr.push('Hitos: '+(e&&e.message?e.message:e)); }
+  if(relErr.length) showBanner('No se pudieron cargar '+relErr.join(' · '));
   wireNA('na-init','list-init'); wireNA('na-hito','list-hito');
 }
 
 function setInvalid(id,on){ $(id).classList.toggle('invalid',on); }
 function validate(){
   let ok=true;
-  const nombre=$('nombre').value.trim(), nec=$('necesidad').value.trim(), alc=$('alcance').value.trim();
+  if(!selectedType){ $('e-tipo').classList.add('on'); return false; }
+  const nombre=$('nombre').value.trim(), nec=$('necesidad').value.trim(), obj=$('objhip').value.trim();
   setInvalid('nombre',!nombre); $('e-nombre').classList.toggle('on',!nombre); if(!nombre)ok=false;
+  if(!$('lider').value){ setInvalid('lider',true); $('e-lider').classList.add('on'); ok=false; } else { setInvalid('lider',false); $('e-lider').classList.remove('on'); }
+  if(!$('area').value){ setInvalid('area',true); $('e-area').classList.add('on'); ok=false; } else { setInvalid('area',false); $('e-area').classList.remove('on'); }
   setInvalid('necesidad',!nec); $('e-necesidad').classList.toggle('on',!nec); if(!nec)ok=false;
-  setInvalid('alcance',!alc); $('e-alcance').classList.toggle('on',!alc); if(!alc)ok=false;
-  if(!$('lider').value){ setInvalid('lider',true); ok=false; } else setInvalid('lider',false);
-  const anyReq=refreshTipos();
-  if(!anyReq){ $('reqnote').classList.add('bad'); $('e-req').classList.add('on'); ok=false; }
+  setInvalid('objhip',!obj); $('e-objhip').classList.toggle('on',!obj); if(!obj)ok=false;
   return ok;
 }
 
@@ -358,20 +423,39 @@ function buildColumnValues(){
   v[COLS.estado]={label:'Registrada'};
   v[COLS.organo]={label:'PMO'};
   v[COLS.fecha]={date:new Date().toISOString().slice(0,10)};
+  v[COLS.tiposr]={label:selectedType};
   v[COLS.lider]={personsAndTeams:[{id:parseInt($('lider').value),kind:'person'}]};
   if($('sponsor').value) v[COLS.sponsor]={personsAndTeams:[{id:parseInt($('sponsor').value),kind:'person'}]};
   if($('area').value) v[COLS.area]={label:$('area').value};
   v[COLS.necesidad]={text:$('necesidad').value.trim()};
-  v[COLS.alcance]={text:$('alcance').value.trim()};
-  if($('beneficios').value.trim()) v[COLS.beneficios]={text:$('beneficios').value.trim()};
-  const reqs=[['req_func','rfunc','Funcional'],['req_op','rop','Operativo'],['req_tec','rtec','Tecnológico'],['req_int','rint','Integraciones y Datos']];
-  const tipos=[];
-  reqs.forEach(([fid,ckey,tipo])=>{ const t=$(fid).value.trim(); if(t){ v[COLS[ckey]]={text:t}; tipos.push(tipo); } });
-  if(tipos.length) v[COLS.tipos]={labels:tipos};
+  v[COLS.objhip]={text:$('objhip').value.trim()};
+  if($('alctec').value.trim()) v[COLS.alctec]={text:$('alctec').value.trim()};
+  if($('criterio').value.trim()) v[COLS.criterio]={text:$('criterio').value.trim()};
   if($('prioridad').value) v[COLS.prioridad]={label:$('prioridad').value};
   if(!$('na-init').checked){ const ids=selectedIds('cb-init'); if(ids.length) v[COLS.iniciativas]={item_ids:ids}; }
   if(!$('na-hito').checked){ const ids=selectedIds('cb-hito'); if(ids.length) v[COLS.hitos]={item_ids:ids}; }
   return v;
+}
+
+function selectedNames(cls){ return [...document.querySelectorAll('.'+cls+':checked')].map(i=>{ const s=i.parentElement.querySelector('span'); return s?s.textContent.trim():''; }).filter(Boolean); }
+function optText(id){ const el=$(id); return el && el.selectedOptions && el.selectedOptions[0] ? el.selectedOptions[0].textContent.trim() : ''; }
+
+function buildPayload(folio, fecha){
+  return {
+    nombre:$('nombre').value.trim(),
+    lider:optText('lider'),
+    sponsor:$('sponsor').value?optText('sponsor'):'',
+    area:$('area').value,
+    fecha:fecha,
+    folio:folio,
+    necesidad:$('necesidad').value.trim(),
+    objhip:$('objhip').value.trim(),
+    alctec:$('alctec').value.trim(),
+    criterio:$('criterio').value.trim(),
+    prioridad:$('prioridad').value,
+    iniciativas:$('na-init').checked?[]:selectedNames('cb-init'),
+    hitos:$('na-hito').checked?[]:selectedNames('cb-hito')
+  };
 }
 
 $('form').addEventListener('submit',async e=>{
@@ -379,15 +463,19 @@ $('form').addEventListener('submit',async e=>{
   if(!validate()){ $('submitnote').textContent='Revisa los campos marcados.'; return; }
   if(!monday){ $('submitnote').textContent='Abre la vista dentro de Monday para poder registrar.'; return; }
   const btn=$('submit'); btn.disabled=true; $('submitnote').textContent='Registrando…';
+  const fecha=new Date().toISOString().slice(0,10);
   try{
     const cols=buildColumnValues();
     const q='mutation ($bid:ID!, $name:String!, $cols:JSON!){ create_item (board_id:$bid, item_name:$name, column_values:$cols, create_labels_if_missing:true){ id } }';
-    const res=await monday.api(q,{variables:{bid:BOARD_ID, name:$('nombre').value.trim(), cols:JSON.stringify(cols)}});
+    const res=await apiQ(q,{bid:BOARD_ID, name:$('nombre').value.trim(), cols:JSON.stringify(cols)});
     const id=res && res.data && res.data.create_item ? res.data.create_item.id : null;
     if(!id) throw new Error('Sin id de respuesta');
+    const payload=buildPayload(id, fecha);
     $('form').style.display='none';
     $('ver-item').href='https://'+ACCOUNT_SLUG+'.monday.com/boards/'+BOARD_ID+'/pulses/'+id;
-    $('success-msg').textContent='"'+$('nombre').value.trim()+'" quedó registrada (estado: En revisión PMO).';
+    $('success-msg').textContent='"'+payload.nombre+'" ('+selectedType+') quedó registrada (estado: Registrada — En revisión PMO).';
+    $('tipo-plantilla').textContent=selectedType;
+    $('descargar-plantilla').onclick=()=>{ try{ ACEPlantilla.descargar(selectedType, payload); }catch(err){ alert('No se pudo generar la plantilla: '+(err.message||err)); } };
     $('success').style.display='block';
     window.scrollTo({top:0,behavior:'smooth'});
   }catch(err){
